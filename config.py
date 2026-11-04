@@ -12,12 +12,30 @@ try:
 except ImportError:  # dotenv is optional — real env vars still work
     pass
 
-DB_PATH = os.path.join(BASE_DIR, "examflow.db")
-SCHEMA_PATH = os.path.join(BASE_DIR, "db", "schema.sql")
-UPLOAD_DIR = os.path.join(BASE_DIR, "uploads")
+# Determine DB path: on Vercel/serverless environments, the filesystem is read-only except /tmp
+if os.environ.get("VERCEL") or os.environ.get("AWS_LAMBDA_FUNCTION_NAME"):
+    DB_PATH = "/tmp/examflow.db"
+    UPLOAD_DIR = "/tmp/uploads"
+    CACHE_DIR = "/tmp/.cache"
+    bundled_db = os.path.join(BASE_DIR, "examflow.db")
+    if os.path.exists(bundled_db) and not os.path.exists(DB_PATH):
+        try:
+            import shutil
+            shutil.copyfile(bundled_db, DB_PATH)
+        except Exception:
+            pass
+else:
+    DB_PATH = os.path.join(BASE_DIR, "examflow.db")
+    UPLOAD_DIR = os.path.join(BASE_DIR, "uploads")
+    CACHE_DIR = os.path.join(BASE_DIR, ".cache")
 
-# Ensure uploads dir exists
-os.makedirs(UPLOAD_DIR, exist_ok=True)
+SCHEMA_PATH = os.path.join(BASE_DIR, "db", "schema.sql")
+
+try:
+    os.makedirs(UPLOAD_DIR, exist_ok=True)
+    os.makedirs(CACHE_DIR, exist_ok=True)
+except Exception:
+    pass
 
 # ─── LLM (OpenRouter) ────────────────────────────────────────────────
 # OpenRouter exposes an OpenAI-compatible endpoint, so any OpenAI client
